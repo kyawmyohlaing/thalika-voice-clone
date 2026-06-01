@@ -1,0 +1,3 @@
+export const MAX_SCRIPT_CHARACTERS = 50000;
+
+export const REMOTE_TTS_CHUNK_CHARACTERS = 420;

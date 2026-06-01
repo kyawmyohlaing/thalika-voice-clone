@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Next.js and build output
+.next/
+out/
+dist/
+release/
+releases/
+coverage/
+.turbo/
+.cache/
+*.tsbuildinfo
+
+# Local environment and secrets
+.env*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local Thalika runtime data
+data/scripts/*
+data/jobs/*
+data/outputs/*
+data/memory/*
+
+# Keep shareable folder placeholders and examples
+!data/scripts/.gitkeep
+!data/jobs/.gitkeep
+!data/outputs/.gitkeep
+!data/memory/MEMORY.example.md
