@@ -38,7 +38,7 @@ const folderDefinitions: FolderDefinition[] = [
   {
     id: "outputs",
     label: "Audio outputs",
-    description: "Generated audio files served through the local audio route.",
+    description: "Generated PCM WAV masters and migration-compatible legacy audio files.",
     path: outputsDir,
     extensions: [".wav", ".mp3"]
   },

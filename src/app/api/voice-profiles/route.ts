@@ -8,8 +8,8 @@ const qualitySchema = z.object({
   durationSeconds: z.number().positive(),
   silenceRatio: z.number().min(0).max(1),
   clippingRatio: z.number().min(0).max(1),
-  rms: z.number().min(0).max(1),
-  peak: z.number().min(0).max(1),
+  rms: z.number().finite().min(0).max(16, "Reference RMS level is unexpectedly high"),
+  peak: z.number().finite().min(0).max(16, "Reference peak level is unexpectedly high"),
   score: z.number().min(0).max(100),
   status: z.enum(["pass", "warn", "block"]),
   issues: z.array(z.string().max(200)).max(20)
@@ -38,7 +38,16 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => undefined));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues.map((issue) => issue.message).join(". ") }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: parsed.error.issues
+          .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`)
+          .join(". ")
+      },
+      { status: 400 }
+    );
+  }
   try {
     return NextResponse.json({ profile: await createVoiceProfile(parsed.data) }, { status: 201 });
   } catch (error) {

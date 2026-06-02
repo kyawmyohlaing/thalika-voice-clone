@@ -5,6 +5,7 @@ export const dataDir = path.join(process.cwd(), "data");
 export const scriptsDir = path.join(dataDir, "scripts");
 export const jobsDir = path.join(dataDir, "jobs");
 export const outputsDir = path.join(dataDir, "outputs");
+export const legacyOutputsBackupDir = path.join(outputsDir, "legacy-backup");
 export const logsDir = path.join(dataDir, "logs");
 export const profilesDir = path.join(dataDir, "profiles");
 export const reviewsDir = path.join(dataDir, "reviews");
@@ -16,6 +17,7 @@ export async function ensureDataDirs() {
     fs.mkdir(scriptsDir, { recursive: true }),
     fs.mkdir(jobsDir, { recursive: true }),
     fs.mkdir(outputsDir, { recursive: true }),
+    fs.mkdir(legacyOutputsBackupDir, { recursive: true }),
     fs.mkdir(logsDir, { recursive: true }),
     fs.mkdir(profilesDir, { recursive: true }),
     fs.mkdir(reviewsDir, { recursive: true }),

@@ -1,7 +1,11 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { detectAudioFileFormat, mergeAudioFiles } from "../audio-utils";
+import {
+  convertRemoteAudioToPcm24Wav,
+  getPunctuationAwarePauseMilliseconds,
+  mergeWavFiles
+} from "../audio-utils";
 import { ensureDataDirs, idStamp, outputsDir, safeJoin, sanitizeFilename } from "../file-utils";
 import { REMOTE_TTS_CHUNK_CHARACTERS } from "../script-limits";
 import { splitScriptIntoChunks } from "../script-chunker";
@@ -223,6 +227,7 @@ async function generateRemote(input: GenerateVoiceInput) {
 
   try {
     const audioChunkPaths: string[] = [];
+    const remoteFormats = new Set<string>();
     await appendGenerationLog("generation_started", {
       jobId: input.jobId,
       provider: "voxcpm2",
@@ -286,14 +291,25 @@ async function generateRemote(input: GenerateVoiceInput) {
           });
         }
       );
-      const chunkPath = path.join(temporaryDir, `chunk-${chunkIndex}.audio`);
-      await fs.writeFile(chunkPath, audio);
+      let converted;
+      try {
+        converted = await convertRemoteAudioToPcm24Wav(audio);
+      } catch {
+        throw new RemoteProviderError("Remote audio decode failed", {
+          publicMessage: "VoxCPM2 returned an audio segment that could not be decoded into PCM WAV."
+        });
+      }
+      const chunkPath = path.join(temporaryDir, `chunk-${chunkIndex}.wav`);
+      await fs.writeFile(chunkPath, converted.wav);
       audioChunkPaths.push(chunkPath);
+      remoteFormats.add(converted.remoteFormat);
       await appendGenerationLog("chunk_completed", {
         jobId: input.jobId,
         chunk: chunkIndex + 1,
         chunks: chunks.length,
-        bytes: audio.length
+        remoteFormat: converted.remoteFormat,
+        remoteBytes: audio.length,
+        pcmWavBytes: converted.wav.length
       });
       await input.onProgress?.({
         completedChunks: chunkIndex + 1,
@@ -302,11 +318,20 @@ async function generateRemote(input: GenerateVoiceInput) {
       });
     }
 
-    const format = await detectAudioFileFormat(audioChunkPaths[0]);
-    const filename = sanitizeFilename(`${outputStem}.${format}`);
+    const format = "wav";
+    const filename = sanitizeFilename(`${outputStem}.wav`);
     const audioFilePath = safeJoin(outputsDir, filename);
-    await appendGenerationLog("merge_started", { jobId: input.jobId, chunks: chunks.length, format });
-    await mergeAudioFiles(audioChunkPaths, audioFilePath, format);
+    const punctuationAwarePauses = chunks
+      .slice(0, -1)
+      .map(getPunctuationAwarePauseMilliseconds);
+    await appendGenerationLog("merge_started", {
+      jobId: input.jobId,
+      chunks: chunks.length,
+      format,
+      encoding: "pcm_s24le",
+      pausesMilliseconds: punctuationAwarePauses.join(",")
+    });
+    await mergeWavFiles(audioChunkPaths, audioFilePath, punctuationAwarePauses);
     await appendGenerationLog("generation_completed", { jobId: input.jobId, chunks: chunks.length, filename, format });
     result = {
       filename,
@@ -316,6 +341,12 @@ async function generateRemote(input: GenerateVoiceInput) {
       metadata: {
         remoteProvider: "huggingface-space",
         remoteBaseUrl: baseUrl,
+        remoteFormats: [...remoteFormats].join(","),
+        outputEncoding: "pcm_s24le",
+        outputSampleRate: 48_000,
+        outputChannels: 1,
+        outputBitDepth: 24,
+        pausePolicy: "punctuation-aware",
         mode: "voxcpm2-controllable-cloning",
         cloneMode: input.cloneMode || "high_fidelity",
         cloneStrength: input.cloneStrength ?? 2.8,
