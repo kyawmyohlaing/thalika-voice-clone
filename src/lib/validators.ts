@@ -13,8 +13,8 @@ const referenceQualitySchema = z.object({
   durationSeconds: z.number().positive(),
   silenceRatio: z.number().min(0).max(1),
   clippingRatio: z.number().min(0).max(1),
-  rms: z.number().min(0).max(1),
-  peak: z.number().min(0).max(1),
+  rms: z.number().finite().min(0).max(16, "Reference RMS level is unexpectedly high"),
+  peak: z.number().finite().min(0).max(16, "Reference peak level is unexpectedly high"),
   score: z.number().min(0).max(100),
   status: z.enum(["pass", "warn", "block"]),
   issues: z.array(z.string().max(200)).max(20)
@@ -99,5 +99,7 @@ export const generateRequestSchema = z
   });
 
 export function formatValidationError(error: z.ZodError) {
-  return error.issues.map((issue) => issue.message).join(". ");
+  return error.issues
+    .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`)
+    .join(". ");
 }

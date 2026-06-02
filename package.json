@@ -14,6 +14,7 @@
     "lint": "tsc --noEmit --incremental false"
   },
   "dependencies": {
+    "@audio/decode-mp3": "^1.1.0",
     "lucide-react": "^1.16.0",
     "next": "^16.2.6",
     "react": "19.0.0",
