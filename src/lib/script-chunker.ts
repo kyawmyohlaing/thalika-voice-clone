@@ -1,4 +1,4 @@
-const sentenceBoundary = /([^။၊.!?\n]+[။၊.!?]?|\n+)/g;
+const sentenceBoundary = /([^\u104b\u104a.!?\n]+[\u104b\u104a.!?]?|\n+)/g;
 
 function splitOversizedSegment(segment: string, maxCharacters: number) {
   const chunks: string[] = [];

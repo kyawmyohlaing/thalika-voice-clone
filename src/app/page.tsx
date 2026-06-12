@@ -42,9 +42,9 @@ export default function Home() {
   const [speed, setSpeed] = useState(1);
   const [emotion, setEmotion] = useState<VoiceEmotion>("calm");
   const [cloneMode, setCloneMode] = useState<CloneMode>("high_fidelity");
-  const [cloneStrength, setCloneStrength] = useState(2.8);
+  const [cloneStrength, setCloneStrength] = useState(2);
   const [denoiseReference, setDenoiseReference] = useState(false);
-  const [normalizeText, setNormalizeText] = useState(true);
+  const [normalizeText, setNormalizeText] = useState(false);
   const [status, setStatus] = useState<StudioStatus>("idle");
   const [error, setError] = useState("");
   const [audioResult, setAudioResult] = useState<AudioResult | undefined>();
@@ -150,23 +150,24 @@ export default function Home() {
   const refreshProviderHealth = useCallback(async () => {
     setProviderHealthLoading(true);
     try {
-      const response = await fetch("/api/providers/voxcpm2/health", { cache: "no-store" });
+      const healthUrl = provider === "voxcpm2_local" ? "/api/providers/voxcpm2-local/health" : "/api/providers/voxcpm2/health";
+      const response = await fetch(healthUrl, { cache: "no-store" });
       const data = (await response.json()) as ProviderHealth;
       setProviderHealth(data);
     } catch {
       setProviderHealth({
         ok: false,
         status: "unavailable",
-        message: "Could not reach the local VoxCPM2 health route.",
+        message: "Could not reach the VoxCPM2 health route.",
         checkedAt: new Date().toISOString()
       });
     } finally {
       setProviderHealthLoading(false);
     }
-  }, []);
+  }, [provider]);
 
   useEffect(() => {
-    if (provider !== "voxcpm2" && provider !== "burmese_production") {
+    if (provider !== "voxcpm2" && provider !== "voxcpm2_local" && provider !== "burmese_production") {
       setProviderHealth(undefined);
       return;
     }
@@ -339,10 +340,10 @@ export default function Home() {
             : referenceAudio?.durationSeconds && referenceAudio.durationSeconds > 50
               ? "Reference audio is too long for VoxCPM2. Trim it to 6-30 seconds of clean speech."
               : "")
-      : provider === "voxcpm2"
+      : provider === "voxcpm2" || provider === "voxcpm2_local"
         ? referenceAudioError ||
           (!referenceAudio && !selectedProfileId
-            ? "VoxCPM2 requires reference audio for voice cloning."
+            ? `${provider === "voxcpm2_local" ? "Local VoxCPM2" : "VoxCPM2"} requires reference audio for voice cloning.`
             : referenceAudio?.durationSeconds && referenceAudio.durationSeconds < 3
               ? "Reference audio is too short. Use at least 3 seconds, ideally 6-15 seconds."
               : referenceAudio?.durationSeconds && referenceAudio.durationSeconds > 50
@@ -352,13 +353,15 @@ export default function Home() {
   const generateDisabled =
     Boolean(scriptError) ||
     isGenerating ||
-    ((provider === "voxcpm2" || provider === "burmese_production") &&
+    (provider === "voxcpm2_local" && providerHealth !== undefined && !providerHealth.ok) ||
+    ((provider === "voxcpm2" || provider === "voxcpm2_local" || provider === "burmese_production") &&
       ((!referenceAudio && !selectedProfileId) || Boolean(referenceRequirementError))) ||
     (provider === "burmese_production" && (referenceQualityReport?.status === "block" || !referenceText.trim() || !normalizationApproved));
   const activePreflight: ProviderPreflightResult = preflightProvider({ provider, script, referenceAudio, voiceProfileId: selectedProfileId || undefined, referenceText, normalizationApproved, cloneMode });
   const capabilityDisabled = !activePreflight.ok;
   const disabledReason =
     scriptError ||
+    (provider === "voxcpm2_local" && providerHealth !== undefined && !providerHealth.ok ? providerHealth.message : "") ||
     referenceRequirementError ||
     (referenceQualityReport?.status === "block" ? "Reference audio quality is blocked. Upload a cleaner voice sample." : "") ||
     (!activePreflight.ok ? activePreflight.message : "");

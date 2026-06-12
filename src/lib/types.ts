@@ -1,4 +1,4 @@
-export type VoiceProvider = "voxcpm2" | "burmese_production";
+export type VoiceProvider = "voxcpm2" | "voxcpm2_local" | "burmese_production";
 export type OutputFormat = "wav" | "mp3";
 export type VoiceEmotion = "neutral" | "calm" | "energetic" | "dramatic";
 export type CloneMode = "balanced" | "high_fidelity";
@@ -16,9 +16,9 @@ export interface LanguageDetectionResult {
 export interface ProviderCapability {
   provider: VoiceProvider;
   name: string;
-  inference: "remote_hf" | "placeholder";
+  inference: "remote_hf" | "local_http" | "placeholder";
   cloneQuality: CapabilityLevel;
-  privacy: "remote_public";
+  privacy: "remote_public" | "local_private";
   statusLabel?: string;
   supportedLanguages: LanguageCode[];
   supportedLanguageLabels: string[];

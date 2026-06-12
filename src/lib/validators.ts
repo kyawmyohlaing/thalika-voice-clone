@@ -28,7 +28,7 @@ export const generateRequestSchema = z
       .trim()
       .min(10, "Script must be at least 10 characters")
       .max(MAX_SCRIPT_CHARACTERS, `Script must be ${MAX_SCRIPT_CHARACTERS.toLocaleString()} characters or fewer`),
-    provider: z.enum(["voxcpm2", "burmese_production"]),
+    provider: z.enum(["voxcpm2", "voxcpm2_local", "burmese_production"]),
     format: z.literal("wav"),
     speed: z.number().min(0.8, "Speed must be at least 0.8").max(1.2, "Speed must be at most 1.2"),
     emotion: z.enum(["neutral", "calm", "energetic", "dramatic"]),
@@ -59,6 +59,13 @@ export const generateRequestSchema = z
         message: "VoxCPM2 requires reference audio for voice cloning"
       });
     }
+    if (value.provider === "voxcpm2_local" && !value.referenceAudio && !value.voiceProfileId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["referenceAudio"],
+        message: "Local VoxCPM2 requires reference audio for voice cloning"
+      });
+    }
     if (value.provider === "burmese_production" && (value.cloneMode || "high_fidelity") === "high_fidelity" && !value.referenceText?.trim() && !value.voiceProfileId) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -80,7 +87,7 @@ export const generateRequestSchema = z
         message: "Reference audio quality is blocked. Upload a cleaner voice sample"
       });
     }
-    if ((value.provider === "voxcpm2" || value.provider === "burmese_production") && value.referenceAudio?.durationSeconds) {
+    if ((value.provider === "voxcpm2" || value.provider === "voxcpm2_local" || value.provider === "burmese_production") && value.referenceAudio?.durationSeconds) {
       if (value.referenceAudio.durationSeconds < 3) {
         context.addIssue({
           code: z.ZodIssueCode.custom,

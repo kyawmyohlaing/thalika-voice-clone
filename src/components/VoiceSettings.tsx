@@ -47,12 +47,20 @@ interface VoiceSettingsProps {
   onRefreshProviderHealth?: () => void;
 }
 
-const healthLabel: Record<ProviderHealthStatus, string> = {
+const hfHealthLabel: Record<ProviderHealthStatus, string> = {
   connected: "HF connected",
   timeout: "HF timeout",
   rate_limited: "HF rate limited",
   unavailable: "HF unavailable",
   invalid_response: "HF invalid response"
+};
+
+const localHealthLabel: Record<ProviderHealthStatus, string> = {
+  connected: "Local connected",
+  timeout: "Local timeout",
+  rate_limited: "Local busy",
+  unavailable: "Local unavailable",
+  invalid_response: "Local invalid response"
 };
 
 const healthClassName: Record<ProviderHealthStatus, string> = {
@@ -95,7 +103,8 @@ export function VoiceSettings({
   onRefreshProviderHealth
 }: VoiceSettingsProps) {
   const referenceAssessment = assessReferenceAudio(referenceAudio);
-  const isCloneProvider = provider === "voxcpm2" || provider === "burmese_production";
+  const isCloneProvider = provider === "voxcpm2" || provider === "voxcpm2_local" || provider === "burmese_production";
+  const isLocalProvider = provider === "voxcpm2_local";
   const [profileName, setProfileName] = useState("");
   const [profileConsent, setProfileConsent] = useState(false);
   const [lexiconOpen, setLexiconOpen] = useState(false);
@@ -146,6 +155,7 @@ export function VoiceSettings({
           >
             <option value="burmese_production">Burmese Production (recommended)</option>
             <option value="voxcpm2">VoxCPM2 Multilingual</option>
+            <option value="voxcpm2_local">Local VoxCPM2</option>
           </select>
           {/* <p className="text-xs leading-relaxed text-studio-muted">
             {provider === "burmese_production"
@@ -157,7 +167,16 @@ export function VoiceSettings({
         {isCloneProvider && (
           <div className="studio-nested-card-bg grid gap-3 rounded-[1.8rem] border border-white/10 p-4">
             <div className="flex flex-wrap items-center gap-2">
-              {provider === "voxcpm2" ? (
+              {provider === "voxcpm2_local" ? (
+                <>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-studio-accent/30 bg-studio-accent/10 px-3 py-1 text-xs font-semibold text-emerald-800">
+                    <Mic2 size={13} /> Local VoxCPM2 inference
+                  </span>
+                  <span className="rounded-full border border-sky-300/45 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-700">
+                    Uses your configured API server
+                  </span>
+                </>
+              ) : provider === "voxcpm2" ? (
                 <>
                   <span className="inline-flex items-center gap-2 rounded-full border border-studio-accent/30 bg-studio-accent/10 px-3 py-1 text-xs font-semibold text-emerald-800">
                     <Mic2 size={13} /> VoxCPM2 multilingual inference
@@ -181,7 +200,7 @@ export function VoiceSettings({
             <div className="studio-control-bg grid gap-2 rounded-2xl border border-white/10 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-2 text-sm font-semibold text-studio-text">
-                  <Server size={15} /> HF backend
+                  <Server size={15} /> {isLocalProvider ? "Local backend" : "HF backend"}
                 </span>
                 <div className="flex items-center gap-2">
                   <span
@@ -190,7 +209,7 @@ export function VoiceSettings({
                         : "border-slate-300 bg-slate-100 text-slate-600"
                       }`}
                   >
-                    {providerHealthLoading ? "Checking..." : providerHealth ? healthLabel[providerHealth.status] : "Not checked"}
+                    {providerHealthLoading ? "Checking..." : providerHealth ? (isLocalProvider ? localHealthLabel : hfHealthLabel)[providerHealth.status] : "Not checked"}
                   </span>
                   {onRefreshProviderHealth && (
                     <button
@@ -206,7 +225,7 @@ export function VoiceSettings({
                 </div>
               </div>
               <p className="text-xs leading-relaxed text-studio-muted">
-                {providerHealth?.message || "Checks the public Hugging Face Space before remote generation."}
+                {providerHealth?.message || (isLocalProvider ? "Checks the configured local VoxCPM2 API before generation." : "Checks the public Hugging Face Space before remote generation.")}
                 {providerHealth?.latencyMs !== undefined && providerHealth.latencyMs > 0
                   ? ` ${providerHealth.latencyMs}ms.`
                   : ""}
@@ -237,7 +256,9 @@ export function VoiceSettings({
                   })`
                   : selectedProfileId
                     ? "Saved local voice profile selected."
-                    : provider === "voxcpm2"
+                    : provider === "voxcpm2_local"
+                      ? "Upload a clean voice reference for local VoxCPM2 cloning."
+                      : provider === "voxcpm2"
                       ? "Upload a clean voice reference for VoxCPM2 cloning."
                       : provider === "burmese_production"
                         ? "Upload clean Burmese voice data. This will run through the VoxCPM2 backend."

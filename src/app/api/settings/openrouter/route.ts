@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getGeminiApiKey, maskSecret, writeEnvKey } from "@/lib/storage/env-store";
+import { getOpenRouterApiKey, maskSecret, writeEnvKey } from "@/lib/storage/env-store";
 
 export const runtime = "nodejs";
 
 const requestSchema = z.object({
-  apiKey: z.string().trim().min(1, "Gemini API key is required").max(500, "Gemini API key is too long")
+  apiKey: z.string().trim().min(1, "OpenRouter API key is required").max(500, "OpenRouter API key is too long")
 });
 
 export async function GET() {
-  const apiKey = await getGeminiApiKey();
+  const apiKey = await getOpenRouterApiKey();
   return NextResponse.json({
     configured: Boolean(apiKey),
     maskedKey: maskSecret(apiKey),
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const apiKey = await writeEnvKey("GEMINI_API_KEY", parsed.data.apiKey);
+  const apiKey = await writeEnvKey("OPENROUTER_API_KEY", parsed.data.apiKey);
   return NextResponse.json({
     ok: true,
     configured: Boolean(apiKey),

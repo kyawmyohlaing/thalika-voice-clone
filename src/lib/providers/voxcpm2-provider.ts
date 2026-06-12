@@ -45,6 +45,10 @@ function speedControl(speed: number) {
   return "natural pacing";
 }
 
+function containsMyanmarText(value: string) {
+  return /[\u1000-\u109f\uaa60-\uaa7f\ua9e0-\ua9ff]/.test(value);
+}
+
 function decodeReferenceAudio(referenceAudio: ReferenceAudioPayload) {
   const match = referenceAudio.dataUrl.match(/^data:(audio\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!match) {
@@ -82,19 +86,22 @@ async function callVoxCPM2(
   scriptChunk: string,
   chunkIndex: number,
   chunkCount: number,
-  useReferenceTranscript = true
+  useReferenceTranscript = true,
+  options: { plainClone?: boolean; cfgValue?: number } = {}
 ) {
   const cloneMode = input.cloneMode || "high_fidelity";
-  const cloneStrength = Math.min(3, Math.max(1, input.cloneStrength ?? (cloneMode === "high_fidelity" ? 2.8 : 2.2)));
+  const cloneStrength = Math.min(3, Math.max(1, options.cfgValue ?? input.cloneStrength ?? 2));
   const denoiseReference = input.denoiseReference ?? false;
-  const normalizeText = input.normalizeText ?? true;
+  const normalizeText = containsMyanmarText(scriptChunk) ? false : input.normalizeText ?? false;
   const referenceText = useReferenceTranscript ? input.referenceText?.trim() || "" : "";
   const continuityInstruction =
     chunkCount > 1
       ? ` This is segment ${chunkIndex + 1} of ${chunkCount}; keep the same speaker identity, pace, volume, accent, and emotional style so all segments join naturally.`
       : "";
   const controlInstruction =
-    cloneMode === "high_fidelity"
+    options.plainClone
+      ? ""
+      : cloneMode === "high_fidelity"
       ? `Preserve the uploaded speaker identity as closely as possible: timbre, accent, pitch range, rhythm, breath, tone, speaking style, and Burmese pronunciation. Use ${emotionControls[input.emotion]} with ${speedControl(input.speed)}.${continuityInstruction}`
       : `Clone the uploaded speaker while keeping natural speech. Use ${emotionControls[input.emotion]} with ${speedControl(input.speed)}.${continuityInstruction}`;
   const body = {
@@ -190,6 +197,13 @@ function shouldFallbackFromTranscript(error: unknown) {
   );
 }
 
+function shouldFallbackToPlainClone(error: unknown) {
+  return (
+    error instanceof RemoteProviderError &&
+    (error.message.startsWith("Missing audio output") || error.message.startsWith("Remote Space generation error"))
+  );
+}
+
 async function generateRemote(input: GenerateVoiceInput) {
   if (!input.referenceAudio) {
     throw new RemoteProviderError("Missing reference audio", {
@@ -254,30 +268,66 @@ async function generateRemote(input: GenerateVoiceInput) {
       });
       const audio = await withRetry(
         async () => {
-          let remoteAudioUrl: string;
+          if (referenceTranscriptEnabled) {
+            try {
+              const remoteAudioUrl = await callVoxCPM2(
+                baseUrl,
+                input,
+                uploadedReferencePath,
+                chunk,
+                chunkIndex,
+                chunks.length,
+                true
+              );
+              return await downloadRemoteAudio(remoteAudioUrl);
+            } catch (error) {
+              if (!shouldFallbackFromTranscript(error)) throw error;
+              transcriptFallbackUsed = true;
+              referenceTranscriptEnabled = false;
+              await appendGenerationLog("transcript_mode_fallback", {
+                jobId: input.jobId,
+                chunk: chunkIndex + 1,
+                chunks: chunks.length,
+                error: diagnosticError(error)
+              });
+            }
+          }
+
           try {
-            remoteAudioUrl = await callVoxCPM2(
-              baseUrl,
-              input,
-              uploadedReferencePath,
-              chunk,
-              chunkIndex,
-              chunks.length,
-              referenceTranscriptEnabled
-            );
+            const remoteAudioUrl = await callVoxCPM2(baseUrl, input, uploadedReferencePath, chunk, chunkIndex, chunks.length, false);
+            return await downloadRemoteAudio(remoteAudioUrl);
           } catch (error) {
-            if (!referenceTranscriptEnabled || !shouldFallbackFromTranscript(error)) throw error;
-            transcriptFallbackUsed = true;
-            referenceTranscriptEnabled = false;
-            await appendGenerationLog("transcript_mode_fallback", {
+            if (!shouldFallbackToPlainClone(error)) throw error;
+            await appendGenerationLog("plain_clone_fallback", {
               jobId: input.jobId,
               chunk: chunkIndex + 1,
               chunks: chunks.length,
+              cfgValue: input.cloneStrength ?? 2,
               error: diagnosticError(error)
             });
-            remoteAudioUrl = await callVoxCPM2(baseUrl, input, uploadedReferencePath, chunk, chunkIndex, chunks.length, false);
           }
-          return downloadRemoteAudio(remoteAudioUrl);
+
+          try {
+            const remoteAudioUrl = await callVoxCPM2(baseUrl, input, uploadedReferencePath, chunk, chunkIndex, chunks.length, false, {
+              plainClone: true
+            });
+            return await downloadRemoteAudio(remoteAudioUrl);
+          } catch (error) {
+            if (!shouldFallbackToPlainClone(error)) throw error;
+            await appendGenerationLog("plain_clone_cfg_fallback", {
+              jobId: input.jobId,
+              chunk: chunkIndex + 1,
+              chunks: chunks.length,
+              cfgValue: 2,
+              error: diagnosticError(error)
+            });
+          }
+
+          const remoteAudioUrl = await callVoxCPM2(baseUrl, input, uploadedReferencePath, chunk, chunkIndex, chunks.length, false, {
+            plainClone: true,
+            cfgValue: 2
+          });
+          return await downloadRemoteAudio(remoteAudioUrl);
         },
         shouldRetryHFError,
         2,

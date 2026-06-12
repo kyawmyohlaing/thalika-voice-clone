@@ -241,7 +241,7 @@ export function extractAudioUrlFromEvents(events: unknown[], baseUrl: string) {
   }
 
   throw new RemoteProviderError("Missing audio output", {
-    publicMessage: "VoxCPM2 Space returned no audio for this segment.",
+    publicMessage: "VoxCPM2 Space returned no audio for this segment. Try turning off text normalization, shortening the script, or retrying after the public Space is less busy.",
     retryable: true
   });
 }

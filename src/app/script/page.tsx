@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Copy, FilePenLine, KeyRound, Loader2, Send, Settings, Sparkles, WandSparkles, X } from "lucide-react";
 import { StudioPageShell } from "@/components/StudioPageShell";
-import { GEMINI_REWRITE_MODELS, type GeminiRewriteModel } from "@/lib/script-rewrite";
+import { OPENROUTER_REWRITE_MODELS, type OpenRouterRewriteModel } from "@/lib/script-rewrite";
 import { MAX_SCRIPT_CHARACTERS } from "@/lib/script-limits";
 
 type RewriteStatus = "idle" | "rewriting" | "completed" | "failed";
@@ -22,7 +22,7 @@ interface RewriteResponse {
   message?: string;
 }
 
-interface GeminiSettingsResponse {
+interface OpenRouterSettingsResponse {
   configured: boolean;
   maskedKey: string;
 }
@@ -38,35 +38,35 @@ export default function ScriptPage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [script, setScript] = useState("");
-  const [model, setModel] = useState<GeminiRewriteModel>("gemini-2.5-flash");
+  const [model, setModel] = useState<OpenRouterRewriteModel>("openrouter/free");
   const [keepBurmese, setKeepBurmese] = useState(true);
   const [status, setStatus] = useState<RewriteStatus>("idle");
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [geminiConfigured, setGeminiConfigured] = useState(false);
-  const [maskedGeminiKey, setMaskedGeminiKey] = useState("");
-  const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [openRouterConfigured, setOpenRouterConfigured] = useState(false);
+  const [maskedOpenRouterKey, setMaskedOpenRouterKey] = useState("");
+  const [openRouterApiKey, setOpenRouterApiKey] = useState("");
   const [keySaveStatus, setKeySaveStatus] = useState<KeySaveStatus>("idle");
   const [keyError, setKeyError] = useState("");
   const [error, setError] = useState("");
   const [rewrittenScript, setRewrittenScript] = useState("");
 
-  const loadGeminiSettings = useCallback(async () => {
+  const loadOpenRouterSettings = useCallback(async () => {
     try {
-      const response = await fetch("/api/settings/gemini", { cache: "no-store" });
+      const response = await fetch("/api/settings/openrouter", { cache: "no-store" });
       if (!response.ok) return;
-      const data = (await response.json()) as GeminiSettingsResponse;
-      setGeminiConfigured(data.configured);
-      setMaskedGeminiKey(data.maskedKey || "");
+      const data = (await response.json()) as OpenRouterSettingsResponse;
+      setOpenRouterConfigured(data.configured);
+      setMaskedOpenRouterKey(data.maskedKey || "");
     } catch {
-      setGeminiConfigured(false);
-      setMaskedGeminiKey("");
+      setOpenRouterConfigured(false);
+      setMaskedOpenRouterKey("");
     }
   }, []);
 
   useEffect(() => {
-    void loadGeminiSettings();
-  }, [loadGeminiSettings]);
+    void loadOpenRouterSettings();
+  }, [loadOpenRouterSettings]);
 
   const scriptError = useMemo(() => {
     const trimmed = script.trim();
@@ -160,24 +160,24 @@ export default function ScriptPage() {
     router.push("/");
   }
 
-  async function saveGeminiApiKey() {
+  async function saveOpenRouterApiKey() {
     setKeySaveStatus("saving");
     setKeyError("");
 
     try {
-      const response = await fetch("/api/settings/gemini", {
+      const response = await fetch("/api/settings/openrouter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: geminiApiKey })
+        body: JSON.stringify({ apiKey: openRouterApiKey })
       });
       const data = await response.json();
       if (!response.ok || !data.ok) {
-        throw new Error(data.error || "Could not save Gemini API key.");
+        throw new Error(data.error || "Could not save OpenRouter API key.");
       }
 
-      setGeminiApiKey("");
-      setGeminiConfigured(Boolean(data.configured));
-      setMaskedGeminiKey(data.maskedKey || "");
+      setOpenRouterApiKey("");
+      setOpenRouterConfigured(Boolean(data.configured));
+      setMaskedOpenRouterKey(data.maskedKey || "");
       setKeySaveStatus("saved");
       window.setTimeout(() => {
         setSettingsOpen(false);
@@ -185,7 +185,7 @@ export default function ScriptPage() {
       }, 700);
     } catch (caught) {
       setKeySaveStatus("failed");
-      setKeyError(caught instanceof Error ? caught.message : "Could not save Gemini API key.");
+      setKeyError(caught instanceof Error ? caught.message : "Could not save OpenRouter API key.");
     }
   }
 
@@ -193,7 +193,7 @@ export default function ScriptPage() {
     <div className="studio-card-bg grid gap-2 rounded-[2.1rem] border border-white/10 p-2 sm:grid-cols-3">
       {[
         { label: "Paste", helper: script.trim() ? "Ready" : "Original", icon: FilePenLine, active: Boolean(script.trim()) },
-        { label: "Rewrite", helper: status === "completed" ? "Done" : "Gemini", icon: Sparkles, active: status === "completed" },
+        { label: "Rewrite", helper: status === "completed" ? "Done" : "OpenRouter", icon: Sparkles, active: status === "completed" },
         { label: "Send", helper: rewrittenScript ? "Voice Over" : "Waiting", icon: Send, active: Boolean(rewrittenScript) }
       ].map((step) => {
         const Icon = step.icon;
@@ -265,7 +265,7 @@ export default function ScriptPage() {
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
             <span className={scriptError ? "text-red-600" : "text-studio-muted"}>
-              {scriptError || "Gemini will rewrite this into narration-ready spoken flow."}
+              {scriptError || "OpenRouter will rewrite this into narration-ready spoken flow."}
             </span>
             <span className="text-studio-muted">{script.trim().split(/\s+/).filter(Boolean).length} words</span>
           </div>
@@ -280,7 +280,7 @@ export default function ScriptPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-studio-text">Rewrite Settings</h2>
-                  <p className="text-sm text-studio-muted">Choose Gemini model for spoken pacing polish.</p>
+                  <p className="text-sm text-studio-muted">Choose an OpenRouter free model for spoken pacing polish.</p>
                 </div>
               </div>
               <button
@@ -291,8 +291,8 @@ export default function ScriptPage() {
                   setKeyError("");
                 }}
                 className="studio-soft-chip-bg grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 text-studio-muted transition hover:border-studio-accent hover:text-studio-text"
-                aria-label="Open Gemini API settings"
-                title="Gemini API settings"
+                aria-label="Open OpenRouter API settings"
+                title="OpenRouter API settings"
               >
                 <Settings size={18} />
               </button>
@@ -302,21 +302,21 @@ export default function ScriptPage() {
               <div className="studio-soft-chip-bg flex items-center justify-between gap-3 rounded-2xl border border-white/10 px-3 py-2 text-sm">
                 <span className="inline-flex items-center gap-2 font-medium text-studio-muted">
                   <KeyRound size={15} />
-                  Gemini API
+                  OpenRouter API
                 </span>
-                <span className={geminiConfigured ? "font-semibold text-emerald-800" : "font-semibold text-amber-700"}>
-                  {geminiConfigured ? `Configured ${maskedGeminiKey}` : "Not configured"}
+                <span className={openRouterConfigured ? "font-semibold text-emerald-800" : "font-semibold text-amber-700"}>
+                  {openRouterConfigured ? `Configured ${maskedOpenRouterKey}` : "Not configured"}
                 </span>
               </div>
 
               <label className="grid gap-2 text-sm font-medium text-studio-muted">
-                Gemini model
+                OpenRouter model
                 <select
                   value={model}
-                  onChange={(event) => setModel(event.target.value as GeminiRewriteModel)}
+                  onChange={(event) => setModel(event.target.value as OpenRouterRewriteModel)}
                   className="studio-control-bg rounded-2xl border border-white/10 px-3 py-3 text-studio-text outline-none focus:border-studio-accent"
                 >
-                  {GEMINI_REWRITE_MODELS.map((item) => (
+                  {OPENROUTER_REWRITE_MODELS.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.label}
                     </option>
@@ -368,7 +368,7 @@ export default function ScriptPage() {
             </div>
             <p className="mt-3 text-sm text-studio-muted">
               {status === "idle" && "Waiting for a valid script."}
-              {status === "rewriting" && "Sending the script to Gemini for narration rewrite."}
+              {status === "rewriting" && "Sending the script to OpenRouter for narration rewrite."}
               {status === "completed" &&
                 (syncStatus === "synced"
                   ? "Rewrite is synced. Open Voice Over to generate audio from the same script."
@@ -445,7 +445,7 @@ export default function ScriptPage() {
           <section
             role="dialog"
             aria-modal="true"
-            aria-labelledby="gemini-settings-title"
+            aria-labelledby="openrouter-settings-title"
             className="studio-card-bg w-full max-w-lg rounded-[2rem] border border-white/10 p-5 shadow-2xl"
           >
             <div className="mb-5 flex items-start justify-between gap-4">
@@ -454,17 +454,17 @@ export default function ScriptPage() {
                   <KeyRound size={19} />
                 </div>
                 <div>
-                  <h2 id="gemini-settings-title" className="text-lg font-semibold text-studio-text">
-                    Gemini API Key
+                  <h2 id="openrouter-settings-title" className="text-lg font-semibold text-studio-text">
+                    OpenRouter API Key
                   </h2>
-                  <p className="text-sm text-studio-muted">Saved locally in `.env.local` as `GEMINI_API_KEY`.</p>
+                  <p className="text-sm text-studio-muted">Saved locally in `.env.local` as `OPENROUTER_API_KEY`.</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSettingsOpen(false)}
                 className="studio-soft-chip-bg grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-studio-muted transition hover:text-studio-text"
-                aria-label="Close Gemini settings"
+                aria-label="Close OpenRouter settings"
               >
                 <X size={17} />
               </button>
@@ -473,19 +473,19 @@ export default function ScriptPage() {
             <div className="grid gap-4">
               <div className="studio-soft-chip-bg rounded-2xl border border-white/10 px-3 py-2 text-sm text-studio-muted">
                 Current status:{" "}
-                <span className={geminiConfigured ? "font-semibold text-emerald-800" : "font-semibold text-amber-700"}>
-                  {geminiConfigured ? `Configured ${maskedGeminiKey}` : "Not configured"}
+                <span className={openRouterConfigured ? "font-semibold text-emerald-800" : "font-semibold text-amber-700"}>
+                  {openRouterConfigured ? `Configured ${maskedOpenRouterKey}` : "Not configured"}
                 </span>
               </div>
 
               <label className="grid gap-2 text-sm font-medium text-studio-muted">
                 API key
                 <input
-                  id="gemini-api-key"
+                  id="openrouter-api-key"
                   type="password"
-                  value={geminiApiKey}
-                  onChange={(event) => setGeminiApiKey(event.target.value)}
-                  placeholder="Paste your Gemini API key"
+                  value={openRouterApiKey}
+                  onChange={(event) => setOpenRouterApiKey(event.target.value)}
+                  placeholder="Paste your OpenRouter API key"
                   className="studio-control-bg rounded-2xl border border-white/10 px-4 py-3 text-studio-text outline-none transition focus:border-studio-accent"
                 />
               </label>
@@ -498,8 +498,8 @@ export default function ScriptPage() {
 
               <button
                 type="button"
-                disabled={!geminiApiKey.trim() || keySaveStatus === "saving"}
-                onClick={saveGeminiApiKey}
+                disabled={!openRouterApiKey.trim() || keySaveStatus === "saving"}
+                onClick={saveOpenRouterApiKey}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-[1.4rem] bg-studio-accent px-5 py-3 font-semibold text-white shadow-lg shadow-emerald-100 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-studio-border disabled:text-studio-muted disabled:shadow-none"
               >
                 {keySaveStatus === "saving" ? <Loader2 size={17} className="animate-spin" /> : <KeyRound size={17} />}

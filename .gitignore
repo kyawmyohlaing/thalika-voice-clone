@@ -24,6 +24,7 @@ coverage/
 *.log
 *.tmp
 *.temp
+__pycache__/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -44,6 +45,10 @@ data/profiles/*
 data/reviews/*
 data/memory/*
 data/logs/*
+
+# Local VoxCPM2 Python environment
+local-voxcpm2-api/.venv/
+local-voxcpm2-api/__pycache__/
 
 # Keep shareable folder placeholders and examples
 !data/scripts/.gitkeep

@@ -15,8 +15,8 @@ function serializeEnvValue(value: string) {
 
 export function maskSecret(value: string) {
   if (!value) return "";
-  if (value.length <= 8) return "••••••••";
-  return `${value.slice(0, 4)}••••${value.slice(-4)}`;
+  if (value.length <= 8) return "********";
+  return `${value.slice(0, 4)}****${value.slice(-4)}`;
 }
 
 export async function readEnvLocal() {
@@ -59,8 +59,8 @@ export async function writeEnvKey(key: string, value: string) {
   return safeValue;
 }
 
-export async function getGeminiApiKey() {
-  const fileValue = await readEnvKey("GEMINI_API_KEY");
+export async function getOpenRouterApiKey() {
+  const fileValue = await readEnvKey("OPENROUTER_API_KEY");
   if (fileValue) return fileValue;
-  return process.env.GEMINI_API_KEY?.trim() || "";
+  return process.env.OPENROUTER_API_KEY?.trim() || "";
 }

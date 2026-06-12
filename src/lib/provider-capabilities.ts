@@ -46,6 +46,50 @@ export const providerCapabilities: Record<VoiceProvider, ProviderCapability> = {
     ],
     recommendation: "This is the strongest current candidate for Burmese cloning. Send Burmese text and clean reference audio."
   },
+  voxcpm2_local: {
+    provider: "voxcpm2_local",
+    name: "Local VoxCPM2",
+    inference: "local_http",
+    cloneQuality: "production",
+    privacy: "local_private",
+    statusLabel: "local/self-hosted",
+    supportedLanguages: [
+      "my",
+      "zh",
+      "en",
+      "ja",
+      "ko",
+      "de",
+      "fr",
+      "ru",
+      "pt",
+      "es",
+      "it",
+      "mixed_supported"
+    ],
+    supportedLanguageLabels: [
+      "Burmese / Myanmar",
+      "Chinese",
+      "English",
+      "Japanese",
+      "Korean",
+      "German",
+      "French",
+      "Russian",
+      "Portuguese",
+      "Spanish",
+      "Italian",
+      "and other VoxCPM2-supported languages"
+    ],
+    requiresReferenceAudio: true,
+    canCloneVoice: true,
+    limitations: [
+      "Uses a local or self-hosted VoxCPM2 API endpoint.",
+      "Requires VOXCPM_LOCAL_API_URL to point at a running VoxCPM2 backend.",
+      "Quality and latency depend on the GPU/server behind that endpoint."
+    ],
+    recommendation: "Use this when you have a local or rented GPU VoxCPM2 server and want to avoid the public Hugging Face Space."
+  },
   burmese_production: {
     provider: "burmese_production",
     name: "Burmese Production",
@@ -92,13 +136,13 @@ export function preflightProvider(
     };
   }
 
-  if (capability.provider === "voxcpm2") {
+  if (capability.provider === "voxcpm2" || capability.provider === "voxcpm2_local") {
     if (!capability.supportedLanguages.includes(detectedLanguage.code)) {
       return {
         ok: false,
         severity: "blocked",
         detectedLanguage,
-        message: "VoxCPM2 does not confidently support this detected script language.",
+        message: `${capability.name} does not confidently support this detected script language.`,
         nextStep: "Use Burmese or another VoxCPM2-supported language, or confirm the script language manually in a future language selector."
       };
     }
@@ -108,7 +152,7 @@ export function preflightProvider(
         ok: false,
         severity: "blocked",
         detectedLanguage,
-        message: "VoxCPM2 requires reference audio for voice cloning.",
+        message: `${capability.name} requires reference audio for voice cloning.`,
         nextStep: "Upload a clean speaker reference clip."
       };
     }
@@ -117,7 +161,7 @@ export function preflightProvider(
       ok: true,
       severity: "info",
       detectedLanguage,
-      message: "VoxCPM2 model selected for Burmese voice cloning.",
+      message: `${capability.name} selected for voice cloning.`,
       nextStep: "",
       hideNextStep: true
     };

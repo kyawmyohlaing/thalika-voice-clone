@@ -9,6 +9,7 @@
     "repair:electron": "node scripts/repair-electron.mjs",
     "metrics:memory": "node scripts/memory-report.mjs",
     "metrics:resources": "node scripts/resource-report.mjs",
+    "voxcpm2:local": "powershell -ExecutionPolicy Bypass -File local-voxcpm2-api/start.ps1",
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit --incremental false"
